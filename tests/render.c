@@ -27,8 +27,9 @@ int main(int argc,char **argv) {
     FILE *f=fopen(argv[3],"wb");assert(f);fprintf(f,"P6\n%d %d\n255\n",width,height);fwrite(pixels,3,width*height,f);fclose(f);
     /* The actual decoder must locate every Russian glyph in both fonts. */
     Adafruit_GFX g={0};
-    for (int sz=0;sz<2;sz++) {
-        GFX_setFont(&g,sz?u8g2_font_ru12:u8g2_font_ru9);
+    const uint8_t *fonts[]={u8g2_font_ru11,u8g2_font_ru13,u8g2_font_ru16};
+    for (int sz=0;sz<3;sz++) {
+        GFX_setFont(&g,fonts[sz]);
         for (unsigned cp=0x410;cp<=0x44f;cp++) assert(u8g2_GetGlyphWidth(&g.u8g2,cp)>0);
         assert(u8g2_GetGlyphWidth(&g.u8g2,0x401)>0 && u8g2_GetGlyphWidth(&g.u8g2,0x451)>0);
         int advance=u8g2_GetGlyphWidth(&g.u8g2,0x41f);

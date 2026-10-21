@@ -14,6 +14,7 @@ lib.cal_weekday.argtypes=[C.c_uint16,C.c_uint8,C.c_uint8]
 lib.cal_month_days.argtypes=[C.c_uint16,C.c_uint8]
 lib.cal_day_kind.argtypes=[C.c_uint16,C.c_uint8,C.c_uint8]
 lib.cal_transfers_known.argtypes=[C.c_uint16];lib.cal_transfers_known.restype=C.c_bool
+lib.cal_next_holiday.argtypes=[Date,C.POINTER(Date)];lib.cal_next_holiday.restype=C.c_char_p
 class CalendarTests(unittest.TestCase):
     def test_every_day_1970_2105(self):
         epoch=dt.date(1970,1,1);day=epoch;count=0
@@ -49,6 +50,11 @@ class CalendarTests(unittest.TestCase):
             while date.year==year:
                 work+=lib.cal_day_kind(year,date.month,date.day)==0;date+=dt.timedelta(days=1)
             self.assertEqual(work,expected)
+    def test_upcoming_holiday_dates(self):
+        for current,expected in [((2026,10,21),(2026,11,4)),((2026,12,31),(2027,1,1)),((2027,1,2),(2027,1,7)),((2027,1,8),(2027,2,23))]:
+            following=Date()
+            self.assertTrue(lib.cal_next_holiday(Date(*current,0,0,0),C.byref(following)))
+            self.assertEqual((following.year,following.month,following.day),expected)
     def test_unknown_year(self):
         self.assertFalse(lib.cal_transfers_known(2028))
         self.assertEqual(lib.cal_day_kind(2028,1,10),0)

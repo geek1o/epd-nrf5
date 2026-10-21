@@ -68,7 +68,7 @@ const char *cal_next_holiday(cal_date_t d, cal_date_t *next) {
     d.hour=d.minute=d.second=0;
     for (unsigned i=0;i<367;i++) {
         const char *s=cal_holiday(d.month,d.day);
-        if (s) { if (next) *next=d; return s; }
+        if (s && (d.month!=1 || d.day==1 || d.day==7)) { if (next) *next=d; return s; }
         if (++d.day>cal_month_days(d.year,d.month)) { d.day=1; if (++d.month>12) { d.month=1; ++d.year; } }
     }
     return NULL;
