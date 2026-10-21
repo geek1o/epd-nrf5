@@ -91,3 +91,9 @@ _build/
 RTE_Components.h
 EventRecorderStub.scvd
 JLinkLog.txt
+# Linux firmware builds and Python caches
+build/
+__pycache__/
+*.pyc
+
+.venv-dfu/

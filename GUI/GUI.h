@@ -15,6 +15,7 @@ typedef struct {
     uint16_t width;
     uint16_t height;
     uint32_t timestamp;
+    bool time_valid; // Runtime only; no change to persisted settings or BLE packets.
     uint8_t week_start;  // 0: Sunday, 1: Monday
     int8_t temperature;
     uint16_t voltage;

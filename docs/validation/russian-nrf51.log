@@ -1,0 +1,14 @@
+SDK/12.3.0_d7731ad/components/libraries/fds/fds.c: In function 'write_execute':
+SDK/12.3.0_d7731ad/components/libraries/fds/fds.c:1253:16: warning: this statement may fall through [-Wimplicit-fallthrough=]
+ 1253 |             if (!record_find_by_desc(&desc, &page))
+      |                ^
+SDK/12.3.0_d7731ad/components/libraries/fds/fds.c:1261:9: note: here
+ 1261 |         case FDS_OP_WRITE_HEADER_BEGIN:
+      |         ^~~~
+Memory region         Used Size  Region Size  %age Used
+           FLASH:       48228 B       129 KB     36.51%
+             RAM:        3824 B       8200 B     46.63%
+   text	   data	    bss	    dec	    hex	filename
+  48228	   1232	   2592	  52052	   cb54	/workspace/EPD-nRF5/build/nrf51-ru/application.elf
+RAM incl. alignment, heap and stack: 3824+2800+1200 = 7824 bytes
+Flash image including data initializers: 49460 bytes

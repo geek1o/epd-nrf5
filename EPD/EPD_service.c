@@ -12,11 +12,16 @@
 
 #include "EPD_service.h"
 
+#ifndef CALENDAR_RUSSIAN
+#define CALENDAR_RUSSIAN 0
+#endif
+
 #include <string.h>
 
 #include "app_scheduler.h"
 #include "ble_srv_common.h"
 #include "main.h"
+#include "calendar_refresh.h"
 #include "nrf_delay.h"
 #include "nrf_gpio.h"
 #include "nrf_log.h"
@@ -67,12 +72,13 @@ static void epd_gui_update(void* p_event_data, uint16_t event_size) {
         .width = epd->width,
         .height = epd->height,
         .timestamp = event->timestamp,
+        .time_valid = time_is_synced(),
         .week_start = p_epd->config.week_start,
         .temperature = epd->drv->read_temp(epd),
         .voltage = EPD_ReadVoltage(),
     };
 
-    uint16_t dev_name_len = sizeof(data.ssid);
+    uint16_t dev_name_len = sizeof(data.ssid) - 1;
     uint32_t err_code = sd_ble_gap_device_name_get((uint8_t*)data.ssid, &dev_name_len);
     if (err_code == NRF_SUCCESS && dev_name_len > 0) data.ssid[dev_name_len] = '\0';
 
@@ -195,8 +201,8 @@ static void epd_service_on_write(ble_epd_t* p_epd, uint8_t* p_data, uint16_t len
             NRF_LOG_DEBUG("time: %02x %02x %02x %02x\n", p_data[1], p_data[2], p_data[3], p_data[4]);
             if (length > 5) NRF_LOG_DEBUG("timezone: %d\n", (int8_t)p_data[5]);
 
-            uint32_t timestamp = (p_data[1] << 24) | (p_data[2] << 16) | (p_data[3] << 8) | p_data[4];
-            timestamp += (length > 5 ? (int8_t)p_data[5] : 8) * 60 * 60;  // timezone
+            uint32_t timestamp = ((uint32_t)p_data[1] << 24) | ((uint32_t)p_data[2] << 16) | ((uint32_t)p_data[3] << 8) | p_data[4];
+            timestamp += (length > 5 ? (int8_t)p_data[5] : (CALENDAR_RUSSIAN ? 3 : 8)) * 60 * 60;  // timezone
             set_timestamp(timestamp);
             epd_update_display_mode(p_epd, length > 6 ? (display_mode_t)p_data[6] : MODE_CALENDAR);
             ble_epd_on_timer(p_epd, timestamp, true);
@@ -237,7 +243,7 @@ static void epd_service_on_write(ble_epd_t* p_epd, uint8_t* p_data, uint16_t len
 
         case EPD_CMD_SET_CONFIG:
             if (length < 2) return;
-            memcpy(&p_epd->config, &p_data[1], (length - 1 > EPD_CONFIG_SIZE) ? EPD_CONFIG_SIZE : length - 1);
+            memcpy(&p_epd->config, &p_data[1], ((size_t)(length - 1) > EPD_CONFIG_SIZE) ? EPD_CONFIG_SIZE : (size_t)(length - 1));
             epd_config_write(&p_epd->config);
             break;
 
@@ -397,7 +403,7 @@ uint32_t ble_epd_init(ble_epd_t* p_epd) {
         memcpy(&p_epd->config, cfg, sizeof(cfg));
 #endif
         if (p_epd->config.display_mode == 0xFF) p_epd->config.display_mode = MODE_CALENDAR;
-        if (p_epd->config.week_start == 0xFF) p_epd->config.week_start = 0;
+        if (p_epd->config.week_start == 0xFF) p_epd->config.week_start = CALENDAR_RUSSIAN ? 1 : 0;
         epd_config_write(&p_epd->config);
     }
 
@@ -429,10 +435,19 @@ uint32_t ble_epd_string_send(ble_epd_t* p_epd, uint8_t* p_string, uint16_t lengt
 }
 
 void ble_epd_on_timer(ble_epd_t* p_epd, uint32_t timestamp, bool force_update) {
-    // Update calendar on 00:00:00, clock on every minute
+#if CALENDAR_RUSSIAN
+    static cal_refresh_state_t state;
+    display_mode_t mode = (display_mode_t)p_epd->config.display_mode;
+    if (!cal_refresh_due(&state, mode, timestamp, time_is_synced(), force_update)) return;
+    epd_gui_update_event_t event = {p_epd, timestamp};
+    if (app_sched_event_put(&event, sizeof(event), epd_gui_update) == NRF_SUCCESS)
+        cal_refresh_accepted(&state, mode, timestamp);
+#else
+    // Original Chinese scheduling behavior.
     if (force_update || (p_epd->config.display_mode == MODE_CALENDAR && timestamp % 86400 == 0) ||
         (p_epd->config.display_mode == MODE_CLOCK && timestamp % 60 == 0)) {
         epd_gui_update_event_t event = {p_epd, timestamp};
         app_sched_event_put(&event, sizeof(epd_gui_update_event_t), epd_gui_update);
     }
+#endif
 }

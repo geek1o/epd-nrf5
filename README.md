@@ -1,5 +1,7 @@
 # EPD-nRF5
 
+[Русская версия: сборка, превью, ограничения и установка](README_RU.md)
+
 E-paper display calendar firmware with support for Chinese lunar calendar, solar terms, and holiday schedules. It can also transmit images via Bluetooth to the e-paper display for use as a digital photo frame. The calendar interface is adapted for common 4.2-inch and 7.5-inch e-paper resolutions, and the same firmware can drive different screen sizes (screen size and driver can be switched online through the web interface).
 
 Supported MCUs: `nrf51822` / `nrf51802` / `nrf52811` / `nrf52810`. For e-paper displays, it supports common `UC81xx` / `SSD16xx` series drivers (black & white / 3-color / 4-color). It also supports custom pin mapping from the e-paper display to the MCU, sleep/wake functionality (NFC / wireless charger), and Bluetooth OTA firmware updates.

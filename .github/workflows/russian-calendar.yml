@@ -1,0 +1,51 @@
+name: Russian calendar firmware
+on:
+  push:
+    branches: [feature/russian-calendar, main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'geek1o/epd-nrf5'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Host dependencies
+        run: python -m pip install Pillow==12.3.0
+      - name: Install tested toolchain
+        run: python tools/install_toolchain.py --prefix "$RUNNER_TEMP/arm-gnu"
+      - name: Calendar and BLE packet tests
+        run: |
+          python tests/test_calendar.py
+          node tests/test_web.js
+          gcc -std=c99 -Wall -Wextra -Werror -IGUI tests/test_refresh.c -o build/test-refresh
+          build/test-refresh
+      - name: Real renderer under ASan and UBSan
+        run: python tools/render_previews.py
+      - name: Build nRF51 and nRF52 applications
+        env:
+          ARM_GCC: ${{ runner.temp }}/arm-gnu/usr/bin/arm-none-eabi-gcc
+        run: |
+          python tools/build_firmware.py --chip 51
+          python tools/build_firmware.py --chip 52
+      - name: Generate and verify conditional OTA candidates
+        run: |
+          python -m pip install --ignore-requires-python --no-deps nrfutil==6.1.7
+          python -m pip install ecdsa==0.19.2 intelhex==2.3.0 protobuf==3.20.3 crcmod==1.7 click==8.5.0 cryptography==50.0.2
+          python tools/package_ota.py --chip 51 --application build/nrf51-ru/application.hex --key tools/priv.pem --out build/nrf51-ru/application-ota.zip
+          python tools/package_ota.py --chip 52 --application build/nrf52-ru/application.hex --key tools/priv.pem --out build/nrf52-ru/application-ota.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: russian-calendar-application-candidates
+          path: |
+            build/nrf*-ru/application*
+            build/nrf*-ru/application-info.json
+            docs/previews/*.png
