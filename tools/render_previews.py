@@ -27,5 +27,7 @@ for w,h in [(600,448),(648,480),(800,480),(640,384),(880,528)]:
   subprocess.run([str(out/'render2800'),'1792540800',str(c),str(out/'large.ppm'),str(w),str(h)],check=True)
 subprocess.run([str(out/'render2800'),'1735689600','2',str(out/'unsynced.ppm'),'400','300','0'],check=True)
 Image.open(out/'unsynced.ppm').save(preview/'unsynchronised.png')
-subprocess.run([str(out/'render2800'),'1792540800','2',str(out/'clock.ppm'),'400','300','1','2'],check=True)
-print(f'{len(dates)*3*2+17} ASan/UBSan renderings passed; two MCU heap sizes produce identical pixels')
+for c,label in [(1,'bw'),(2,'bwr'),(3,'bwry')]:
+ subprocess.run([str(out/'render2800'),'1792589160',str(c),str(out/'clock.ppm'),'400','300','1','2'],check=True)
+ Image.open(out/'clock.ppm').save(preview/f'clock-{label}.png')
+print(f'{len(dates)*3*2+19} ASan/UBSan renderings passed; two MCU heap sizes produce identical pixels')

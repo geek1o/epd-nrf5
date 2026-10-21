@@ -107,14 +107,67 @@ static void calendar(Adafruit_GFX *g, const gui_data_t *data, cal_date_t d) {
     GFX_setFont(g,u8g2_font_ru11);
     text(g,width-10-GFX_getUTF8Width(g,note),height-5,GFX_BLACK,u8g2_font_ru11,note);
 }
+static void segment(Adafruit_GFX *g,int x,int y,int length,int thickness,bool vertical,uint16_t color) {
+    for (int i=0;i<thickness;i++) {
+        int inset=abs(i-thickness/2);
+        if (vertical) GFX_drawFastVLine(g,x+i,y+inset,length-2*inset,color);
+        else GFX_drawFastHLine(g,x+inset,y+i,length-2*inset,color);
+    }
+}
+static void clock_digit(Adafruit_GFX *g,int digit,int x,int y,int scale,uint16_t color) {
+    static const uint8_t masks[]={0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7d,0x07,0x7f,0x6f};
+    int w=8*scale,h=16*scale,t=scale;
+    uint8_t mask=masks[digit];
+    if (mask&1) segment(g,x+2,y,w-4,t,false,color);
+    if (mask&2) segment(g,x+w-t,y+t,h/2-t,t,true,color);
+    if (mask&4) segment(g,x+w-t,y+h/2,h/2-t,t,true,color);
+    if (mask&8) segment(g,x+2,y+h-t,w-4,t,false,color);
+    if (mask&16) segment(g,x,y+h/2,h/2-t,t,true,color);
+    if (mask&32) segment(g,x,y+t,h/2-t,t,true,color);
+    if (mask&64) segment(g,x+2,y+h/2-t/2,w-4,t,false,color);
+}
 static void clock_view(Adafruit_GFX *g,const gui_data_t *data,cal_date_t d) {
+    static const char *const months[]={"января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"};
+    uint16_t accent=data->color>=2 ? GFX_RED : GFX_BLACK;
+    int width=data->width,height=data->height;
     char s[80];
-    snprintf(s,sizeof(s),"%02u.%02u.%u  %s",d.day,d.month,d.year,cal_week_names[cal_weekday(d.year,d.month,d.day)]);
-    text(g,10,30,GFX_BLACK,u8g2_font_ru16,s);
-    snprintf(s,sizeof(s),"%02u:%02u",d.hour,d.minute);
-    GFX_setFont(g,u8g2_font_ru_numbers48);
-    centered(g,0,data->height/2,data->width,GFX_BLACK,GFX_WHITE,s);
-    text(g,10,data->height-15,GFX_BLACK,u8g2_font_ru13,"Обновление раз в минуту");
+    snprintf(s,sizeof(s),"%u %s %u",d.day,months[d.month-1],d.year);
+    text(g,10,23,GFX_BLACK,u8g2_font_ru16,s);
+    text(g,10,46,GFX_BLACK,u8g2_font_ru13,cal_week_names[cal_weekday(d.year,d.month,d.day)]);
+    snprintf(s,sizeof(s),"%u,%u В",data->voltage/1000,(data->voltage%1000)/100);
+    GFX_setFont(g,u8g2_font_ru11);
+    text(g,width-10-GFX_getUTF8Width(g,s),23,GFX_BLACK,u8g2_font_ru11,s);
+    GFX_drawFastHLine(g,10,57,width-20,GFX_BLACK);
+    int scale=(width-40)/39, vertical_scale=(height-126)/16;
+    if (scale>vertical_scale) scale=vertical_scale;
+    if (scale>12) scale=12;
+    int x=(width-39*scale)/2,y=63+(height-126-16*scale)/2;
+    clock_digit(g,d.hour/10,x,y,scale,accent);
+    clock_digit(g,d.hour%10,x+9*scale,y,scale,accent);
+    GFX_fillCircle(g,x+19*scale,y+5*scale,scale/2,accent);
+    GFX_fillCircle(g,x+19*scale,y+11*scale,scale/2,accent);
+    clock_digit(g,d.minute/10,x+22*scale,y,scale,accent);
+    clock_digit(g,d.minute%10,x+31*scale,y,scale,accent);
+    GFX_drawFastHLine(g,10,height-58,width-20,GFX_BLACK);
+    snprintf(s,sizeof(s),"%u",cal_iso_week(d,NULL));
+    GFX_setFont(g,u8g2_font_ru16);
+    centered(g,10,height-30,80,GFX_BLACK,GFX_WHITE,s);
+    GFX_setFont(g,u8g2_font_ru11);
+    centered(g,10,height-10,80,GFX_BLACK,GFX_WHITE,"НЕДЕЛЯ");
+    cal_date_t next,today=d;today.hour=today.minute=today.second=0;
+    if (cal_next_holiday(d,&next)) {
+        snprintf(s,sizeof(s),"%02u.%02u",next.day,next.month);
+        GFX_setFont(g,u8g2_font_ru16);
+        centered(g,90,height-30,width-180,accent,GFX_WHITE,s);
+        GFX_setFont(g,u8g2_font_ru11);
+        centered(g,90,height-10,width-180,GFX_BLACK,GFX_WHITE,holiday_label(next));
+        unsigned days=(cal_to_timestamp(next)-cal_to_timestamp(today))/86400;
+        snprintf(s,sizeof(s),"%u",days);
+        GFX_setFont(g,u8g2_font_ru16);
+        centered(g,width-90,height-30,80,accent,GFX_WHITE,s);
+        GFX_setFont(g,u8g2_font_ru11);
+        centered(g,width-90,height-10,80,GFX_BLACK,GFX_WHITE,days?"ДНЕЙ":"СЕГОДНЯ");
+    }
 }
 void DrawGUI(gui_data_t *data,buffer_callback callback,void *user) {
     if (!data || data->width<400 || data->height<300) return;
