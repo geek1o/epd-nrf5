@@ -24,6 +24,7 @@ int main(int argc,char **argv) {
     gui_data_t d={.mode=MODE_CALENDAR,.width=width,.height=height,.color=color,.timestamp=strtoul(argv[1],0,10),.time_valid=true,.voltage=2900,.temperature=27};
     if (argc>6) d.time_valid=atoi(argv[6]);
     if (argc>7) d.mode=atoi(argv[7]);
+    if (argc>8) d.voltage=atoi(argv[8]);
     DrawGUI(&d,page,NULL); assert(pages>0);
     cal_date_t date=cal_from_timestamp(d.timestamp);
     if (d.mode==MODE_CALENDAR && width==400 && height==300 && d.time_valid &&
@@ -46,6 +47,23 @@ int main(int argc,char **argv) {
         for (int square=0;square<2;square++) for (int yy=0;yy<12;yy++) for (int xx=0;xx<12;xx++) {
             unsigned char *p=&pixels[((116+square*56+yy)*width+200+xx)*3];
             assert(p[0]==0 && p[1]==0 && p[2]==0);
+        }
+    }
+    if (d.time_valid && width==400 && height==300 &&
+        (d.mode==MODE_CALENDAR || d.mode==MODE_CLOCK)) {
+        int bx=d.mode==MODE_CALENDAR ? 368 : 340;
+        int top=d.mode==MODE_CALENDAR ? 12 : 25;
+        const int border[][2]={{0,0},{19,9},{20,4},{21,5}};
+        for (unsigned i=0;i<sizeof(border)/sizeof(border[0]);i++) {
+            unsigned char *p=&pixels[((top+border[i][1])*width+bx+border[i][0])*3];
+            assert(p[0]==0 && p[1]==0 && p[2]==0);
+        }
+        if (d.voltage==1900 || d.voltage==3200) {
+            unsigned char expected=d.voltage==1900 ? 255 : 0;
+            for (int y=2;y<8;y++) for (int x=2;x<18;x++) {
+                unsigned char *p=&pixels[((top+y)*width+bx+x)*3];
+                assert(p[0]==expected && p[1]==expected && p[2]==expected);
+            }
         }
     }
     FILE *f=fopen(argv[3],"wb");assert(f);fprintf(f,"P6\n%d %d\n255\n",width,height);fwrite(pixels,3,width*height,f);fclose(f);

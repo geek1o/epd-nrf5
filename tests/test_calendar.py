@@ -15,6 +15,8 @@ lib.cal_month_days.argtypes=[C.c_uint16,C.c_uint8]
 lib.cal_day_kind.argtypes=[C.c_uint16,C.c_uint8,C.c_uint8]
 lib.cal_transfers_known.argtypes=[C.c_uint16];lib.cal_transfers_known.restype=C.c_bool
 lib.cal_next_holiday.argtypes=[Date,C.POINTER(Date)];lib.cal_next_holiday.restype=C.c_char_p
+lib.cal_day_of_year.argtypes=[Date];lib.cal_day_of_year.restype=C.c_uint16
+lib.cal_days_left_in_year.argtypes=[Date];lib.cal_days_left_in_year.restype=C.c_uint16
 class CalendarTests(unittest.TestCase):
     def test_every_day_1970_2105(self):
         epoch=dt.date(1970,1,1);day=epoch;count=0
@@ -23,6 +25,8 @@ class CalendarTests(unittest.TestCase):
             got=lib.cal_from_timestamp(t)
             self.assertEqual((got.year,got.month,got.day,got.hour,got.minute,got.second),(day.year,day.month,day.day,23,59,59))
             self.assertEqual(lib.cal_to_timestamp(got),t)
+            self.assertEqual(lib.cal_day_of_year(got),day.timetuple().tm_yday)
+            self.assertEqual(lib.cal_days_left_in_year(got),(dt.date(day.year,12,31)-day).days)
             following=lib.cal_from_timestamp(t+1); tomorrow=day+dt.timedelta(days=1)
             self.assertEqual((following.year,following.month,following.day,following.hour,following.minute,following.second),(tomorrow.year,tomorrow.month,tomorrow.day,0,0,0))
             self.assertEqual(lib.cal_weekday(day.year,day.month,day.day),day.weekday())

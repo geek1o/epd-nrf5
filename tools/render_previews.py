@@ -36,4 +36,9 @@ for timestamp,name in [(1792589160,'clock'),(int(dt.datetime(2025,7,18,10,8,tzin
    frames.append(frame.read_bytes())
   assert frames[0]==frames[1], (name,c,'clock page seams')
   Image.open(out/'clock2800.ppm').save(preview/f'{name}-{label}.png')
-print(f'{len(dates)*3*2+28} ASan/UBSan renderings passed; two MCU heap sizes produce identical calendar and clock pixels')
+# Empty/full battery: outline, terminal and fill, on both screens and all palettes.
+for mode in (1,2):
+ for voltage in (1900,3200):
+  for c in (1,2,3):
+   subprocess.run([str(out/'render2800'),'1792540800',str(c),str(out/'battery.ppm'),'400','300','1',str(mode),str(voltage)],check=True)
+print(f'{len(dates)*3*2+40} ASan/UBSan renderings passed; two MCU heap sizes produce identical calendar and clock pixels')

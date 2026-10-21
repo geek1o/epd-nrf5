@@ -12,7 +12,7 @@ for chip in ('51','52'):
  for name in ['application.hex','application.bin','application.elf','application.map','application.ld','application-info.json','application-ota.zip']:
   data=(folder/name).read_bytes(); files[f'nrf{chip}-ru/{name}']=data
 for path in (root/'docs/previews').glob('*.png'): files['previews/'+path.name]=path.read_bytes()
-for name in ['docs/flashing_ru.md','docs/holidays_ru.md','docs/validation_ru.md']:
+for name in ['docs/flashing_ru.md','docs/holidays_ru.md','docs/validation_ru.md','docs/github_survey_ru.md']:
  files[name]=(root/name).read_bytes()
 for source,name in [('LICENSE','GPL-3.txt'),('tools/fonts/LICENSE-DejaVu.txt','DejaVu.txt'),('SDK/17.1.0_ddde560/modules/nrfx/LICENSE','Nordic-nrfx.txt'),('SDK/17.1.0_ddde560/external/segger_rtt/license/license.txt','SEGGER.txt')]:
  files['LICENSES/'+name]=(root/source).read_bytes()
