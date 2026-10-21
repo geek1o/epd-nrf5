@@ -68,11 +68,15 @@ static void calendar(Adafruit_GFX *g, const gui_data_t *data, cal_date_t d) {
         uint16_t fg=kind==CAL_WORKDAY?GFX_BLACK:accent, bg=GFX_WHITE;
         if (day==d.day) {
             bg=accent; fg=GFX_WHITE;
-            GFX_fillRoundRect(g,cx-16,cy-14,32,29,4,bg);
+            GFX_fillCircle(g,cx,cy,16,bg);
+        } else if (kind==CAL_HOLIDAY) {
+            GFX_drawCircle(g,cx,cy,16,accent);
         }
         snprintf(buf,sizeof(buf),"%d",day);
+        GFX_setFontMode(g,1);
         centered(g,x,cy+7,cw,fg,bg,buf);
-        if (kind==CAL_HOLIDAY) GFX_fillCircle(g,day==d.day?cx+12:x+cw-4,cy-11,1,fg);
+        GFX_setFontMode(g,0);
+        if (kind==CAL_HOLIDAY && day==d.day) GFX_fillCircle(g,cx+11,cy-10,1,GFX_WHITE);
         if (kind==CAL_TRANSFER_OFF) GFX_drawFastHLine(g,cx-7,cy+12,14,fg);
     }
     GFX_setFont(g,u8g2_font_ru11);
@@ -103,70 +107,114 @@ static void calendar(Adafruit_GFX *g, const gui_data_t *data, cal_date_t d) {
     uint16_t wy; unsigned week=cal_iso_week(d,&wy);
     snprintf(buf,sizeof(buf),"НЕДЕЛЯ %02u",week);
     text(g,10,height-5,GFX_BLACK,u8g2_font_ru11,buf);
-    const char *note=cal_transfers_known(d.year) ? "Точка: праздник / черта: перенос" : "Переносы на этот год не заданы";
+    const char *note=cal_transfers_known(d.year) ? "Круг: праздник / заливка: сегодня" : "Переносы на этот год не заданы";
     GFX_setFont(g,u8g2_font_ru11);
     text(g,width-10-GFX_getUTF8Width(g,note),height-5,GFX_BLACK,u8g2_font_ru11,note);
 }
-static void segment(Adafruit_GFX *g,int x,int y,int length,int thickness,bool vertical,uint16_t color) {
-    for (int i=0;i<thickness;i++) {
-        int inset=abs(i-thickness/2);
-        if (vertical) GFX_drawFastVLine(g,x+i,y+inset,length-2*inset,color);
-        else GFX_drawFastHLine(g,x+inset,y+i,length-2*inset,color);
+static uint8_t batt_cal(uint16_t voltage) {
+    uint16_t adc_sample = (voltage * 2047) / 3600;
+    if (adc_sample > 1705)
+        return 100;
+    else if (adc_sample <= 1705 && adc_sample > 1584)
+        return 28 + (uint8_t)(((((adc_sample - 1584) << 16) / (1705 - 1584)) * 72) >> 16);
+    else if (adc_sample <= 1584 && adc_sample > 1360)
+        return 4 + (uint8_t)(((((adc_sample - 1360) << 16) / (1584 - 1360)) * 24) >> 16);
+    else if (adc_sample <= 1360 && adc_sample > 1136)
+        return (uint8_t)(((((adc_sample - 1136) << 16) / (1360 - 1136)) * 4) >> 16);
+    else
+        return 0;
+}
+
+// clang-format off
+/* Routine to Draw Large 7-Segment formated number
+   Contributed by William Zaggle.
+
+   int n - The number to be displayed
+   int xLoc = The x location of the upper left corner of the number
+   int yLoc = The y location of the upper left corner of the number
+   int cS = The size of the number.
+   fC is the foreground color of the number
+   bC is the background color of the number (prevents having to clear previous space)
+   nD is the number of digit spaces to occupy (must include space for minus sign for numbers < 0).
+
+   width: nD*(11*cS+2)-2*cS
+   height: 20*cS+4
+
+   https://forum.arduino.cc/t/fast-7-segment-number-display-for-tft/296619/4
+*/
+static void Draw7Number(Adafruit_GFX *gfx, int16_t n, uint16_t xLoc, uint16_t yLoc, int16_t cS, uint16_t fC, uint16_t bC, int16_t nD) {
+    uint16_t num=abs(n),i,t,w,col,h,a,b,j=1,d=0,S2=5*cS,S3=2*cS,S4=7*cS,x1=cS+1,x2=S3+S2+1,y1=yLoc+x1,y3=yLoc+S3+S4+1;
+    uint16_t seg[7][3]={{x1,yLoc,1},{x2,y1,0},{x2,y3+x1,0},{x1,(2*y3)-yLoc,1},{0,y3+x1,0},{0,y1,0},{x1,y3,1}};
+    uint8_t nums[12]={0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F,0x00,0x40},c=(c=abs(cS))>10?10:(c<1)?1:c,cnt=(cnt=abs(nD))>10?10:(cnt<1)?1:cnt;
+    for (xLoc+=cnt*(d=S2+(3*S3)+2);cnt>0;cnt--){
+      for (i=(num>9)?num%10:((!cnt)&&(n<0))?11:((nD<0)&&(!num))?10:num,xLoc-=d,num/=10,j=0;j<7;++j){
+        col=(nums[i]&(1<<j))?fC:bC;
+        if (seg[j][2])for(w=S2,t=seg[j][1]+S3,h=seg[j][1]+cS,a=xLoc+seg[j][0]+cS,b=seg[j][1];b<h;b++,a--,w+=2)GFX_drawFastHLine(gfx,a,b,w,col);
+        else for(w=S4,t=xLoc+seg[j][0]+S3,h=xLoc+seg[j][0]+cS,b=xLoc+seg[j][0],a=seg[j][1]+cS;b<h;b++,a--,w+=2)GFX_drawFastVLine(gfx,b,a,w,col);
+        for (;b<t;b++,a++,w-=2)seg[j][2]?GFX_drawFastHLine(gfx,a,b,w,col):GFX_drawFastVLine(gfx,b,a,w,col);
+        }
     }
 }
-static void clock_digit(Adafruit_GFX *g,int digit,int x,int y,int scale,uint16_t color) {
-    static const uint8_t masks[]={0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7d,0x07,0x7f,0x6f};
-    int w=8*scale,h=16*scale,t=scale;
-    uint8_t mask=masks[digit];
-    if (mask&1) segment(g,x+2,y,w-4,t,false,color);
-    if (mask&2) segment(g,x+w-t,y+t,h/2-t,t,true,color);
-    if (mask&4) segment(g,x+w-t,y+h/2,h/2-t,t,true,color);
-    if (mask&8) segment(g,x+2,y+h-t,w-4,t,false,color);
-    if (mask&16) segment(g,x,y+h/2,h/2-t,t,true,color);
-    if (mask&32) segment(g,x,y+t,h/2-t,t,true,color);
-    if (mask&64) segment(g,x+2,y+h/2-t/2,w-4,t,false,color);
+// clang-format on
+
+/* Preserve upstream's segment geometry, scale and square colon from the reference. */
+static void clock_time(Adafruit_GFX *g,cal_date_t d,int x,int y,int scale) {
+    Draw7Number(g,d.hour,x,y,scale,GFX_BLACK,GFX_WHITE,2);
+    x += 2*(11*scale+2)-2*scale+2*scale;
+    GFX_fillRect(g,x,y+9*scale/2+1,2*scale,2*scale,GFX_BLACK);
+    GFX_fillRect(g,x,y+27*scale/2+3,2*scale,2*scale,GFX_BLACK);
+    x += 4*scale;
+    Draw7Number(g,d.minute,x,y,scale,GFX_BLACK,GFX_WHITE,2);
 }
 static void clock_view(Adafruit_GFX *g,const gui_data_t *data,cal_date_t d) {
     static const char *const months[]={"января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"};
     uint16_t accent=data->color>=2 ? GFX_RED : GFX_BLACK;
-    int width=data->width,height=data->height;
+    int width=data->width,height=data->height,padding=height>=400?100:40;
     char s[80];
-    snprintf(s,sizeof(s),"%u %s %u",d.day,months[d.month-1],d.year);
-    text(g,10,23,GFX_BLACK,u8g2_font_ru16,s);
-    text(g,10,46,GFX_BLACK,u8g2_font_ru13,cal_week_names[cal_weekday(d.year,d.month,d.day)]);
+    snprintf(s,sizeof(s),"%02u",d.day);
+    text(g,padding,36,accent,u8g2_font_helvB18_tn,s);
+    int date_x=g->tx;
+    snprintf(s,sizeof(s)," %s ",months[d.month-1]);
+    text(g,date_x,36,GFX_BLACK,u8g2_font_ru16,s);
+    date_x=g->tx;
+    snprintf(s,sizeof(s),"%u",d.year);
+    text(g,date_x,36,accent,u8g2_font_helvB18_tn,s);
+#ifdef CALENDAR_LAYOUT_CHECK
+    assert(g->tx<width-padding-70);
+#endif
+    text(g,padding,58,GFX_BLACK,u8g2_font_ru13,cal_week_names[cal_weekday(d.year,d.month,d.day)]);
     snprintf(s,sizeof(s),"%u,%u В",data->voltage/1000,(data->voltage%1000)/100);
     GFX_setFont(g,u8g2_font_ru11);
-    text(g,width-10-GFX_getUTF8Width(g,s),23,GFX_BLACK,u8g2_font_ru11,s);
-    GFX_drawFastHLine(g,10,57,width-20,GFX_BLACK);
-    int scale=(width-40)/39, vertical_scale=(height-126)/16;
-    if (scale>vertical_scale) scale=vertical_scale;
-    if (scale>12) scale=12;
-    int x=(width-39*scale)/2,y=63+(height-126-16*scale)/2;
-    clock_digit(g,d.hour/10,x,y,scale,accent);
-    clock_digit(g,d.hour%10,x+9*scale,y,scale,accent);
-    GFX_fillCircle(g,x+19*scale,y+5*scale,scale/2,accent);
-    GFX_fillCircle(g,x+19*scale,y+11*scale,scale/2,accent);
-    clock_digit(g,d.minute/10,x+22*scale,y,scale,accent);
-    clock_digit(g,d.minute%10,x+31*scale,y,scale,accent);
-    GFX_drawFastHLine(g,10,height-58,width-20,GFX_BLACK);
-    snprintf(s,sizeof(s),"%u",cal_iso_week(d,NULL));
-    GFX_setFont(g,u8g2_font_ru16);
-    centered(g,10,height-30,80,GFX_BLACK,GFX_WHITE,s);
-    GFX_setFont(g,u8g2_font_ru11);
-    centered(g,10,height-10,80,GFX_BLACK,GFX_WHITE,"НЕДЕЛЯ");
+    text(g,width-padding-24-GFX_getUTF8Width(g,s),34,GFX_BLACK,u8g2_font_ru11,s);
+    int bx=width-padding-20;
+    GFX_drawRect(g,bx,25,20,10,GFX_BLACK);
+    GFX_fillRect(g,bx+20,29,2,2,GFX_BLACK);
+    GFX_fillRect(g,bx+2,27,16*batt_cal(data->voltage)/100,6,GFX_BLACK);
+    snprintf(s,sizeof(s),"%d°C",data->temperature);
+    GFX_setFont(g,u8g2_font_ru13);
+    text(g,width-padding-GFX_getUTF8Width(g,s),58,GFX_BLACK,u8g2_font_ru13,s);
+    GFX_drawFastHLine(g,padding-10,68,width-2*(padding-10),GFX_BLACK);
+    int scale=height/45;
+    if (scale>10) scale=10;
+    int time_width=2*(2*(11*scale+2)-2*scale)+4*scale;
+    int time_height=20*scale+4;
+    clock_time(g,d,(width-time_width)/2,(height-time_height)/2,scale);
+    GFX_drawFastHLine(g,padding-10,height-68,width-2*(padding-10),GFX_BLACK);
+    snprintf(s,sizeof(s),"%u год",d.year);
+    text(g,padding,height-38,GFX_BLACK,u8g2_font_ru13,s);
+    snprintf(s,sizeof(s),"%u-я неделя",cal_iso_week(d,NULL));
+    text(g,padding,height-18,GFX_BLACK,u8g2_font_ru13,s);
     cal_date_t next,today=d;today.hour=today.minute=today.second=0;
     if (cal_next_holiday(d,&next)) {
-        snprintf(s,sizeof(s),"%02u.%02u",next.day,next.month);
-        GFX_setFont(g,u8g2_font_ru16);
-        centered(g,90,height-30,width-180,accent,GFX_WHITE,s);
-        GFX_setFont(g,u8g2_font_ru11);
-        centered(g,90,height-10,width-180,GFX_BLACK,GFX_WHITE,holiday_label(next));
+        const char *name=holiday_label(next);
+        GFX_setFont(g,u8g2_font_ru13);
+        text(g,width-padding-GFX_getUTF8Width(g,name),height-38,accent,u8g2_font_ru13,name);
         unsigned days=(cal_to_timestamp(next)-cal_to_timestamp(today))/86400;
-        snprintf(s,sizeof(s),"%u",days);
-        GFX_setFont(g,u8g2_font_ru16);
-        centered(g,width-90,height-30,80,accent,GFX_WHITE,s);
-        GFX_setFont(g,u8g2_font_ru11);
-        centered(g,width-90,height-10,80,GFX_BLACK,GFX_WHITE,days?"ДНЕЙ":"СЕГОДНЯ");
+        unsigned last=days%10, last_two=days%100;
+        const char *unit=last==1 && last_two!=11?"день":last>=2 && last<=4 && (last_two<12 || last_two>14)?"дня":"дней";
+        if (!days) snprintf(s,sizeof(s),"Сегодня");
+        else snprintf(s,sizeof(s),"%s %u %s",last==1 && last_two!=11?"Остался":"Осталось",days,unit);
+        text(g,width-padding-GFX_getUTF8Width(g,s),height-18,GFX_BLACK,u8g2_font_ru13,s);
     }
 }
 void DrawGUI(gui_data_t *data,buffer_callback callback,void *user) {

@@ -11,7 +11,7 @@ p.add_argument('--chip', choices=['51','52'], required=True)
 p.add_argument('--application', required=True)
 p.add_argument('--key', required=True)
 p.add_argument('--out', required=True)
-p.add_argument('--version',type=lambda s:int(s,0),default=0x1b)
+p.add_argument('--version',type=lambda s:int(s,0),default=0x1c)
 a=p.parse_args()
 signer=Signing();signer.load_key(a.key)
 softdevice=0x126 if a.chip=='52' else 0x87

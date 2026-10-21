@@ -27,5 +27,6 @@ with tempfile.TemporaryDirectory() as tmp:
   output=pathlib.Path(tmp)/(name+'.c')
   subprocess.run([a.bdfconv,'-b','0','-f','1','-m',','.join(map(str,sorted(charset))),'-n',name,'-o',str(output),str(bdf)],check=True)
   parts.append(output.read_text())
+parts.append((root/'tools/fonts/u8g2_font_helvB18_tn.c').read_text())
 (root/'GUI/fonts_ru.c').write_text('\n'.join(line.rstrip() for line in '\n'.join(parts).splitlines())+'\n')
-(root/'GUI/fonts_ru.h').write_text('#ifndef EPD_FONTS_RU_H\n#define EPD_FONTS_RU_H\n#include "u8g2_font.h"\n'+''.join(f'extern const uint8_t {name}[];\n' for name,_,_,_ in fonts)+'#endif\n')
+(root/'GUI/fonts_ru.h').write_text('#ifndef EPD_FONTS_RU_H\n#define EPD_FONTS_RU_H\n#include "u8g2_font.h"\n'+''.join(f'extern const uint8_t {name}[];\n' for name,_,_,_ in fonts)+'extern const uint8_t u8g2_font_helvB18_tn[];\n#endif\n')

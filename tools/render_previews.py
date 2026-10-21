@@ -7,7 +7,7 @@ out=root/'build';out.mkdir(exist_ok=True)
 files=['tests/render.c','GUI/GUI_RU.c','GUI/calendar.c','GUI/fonts_ru.c','GUI/Adafruit_GFX.c','GUI/u8g2_font.c']
 for heap in (2800,8192):
  subprocess.run(['gcc','-std=c99','-Wall','-Wextra','-Werror','-fno-pie','-no-pie','-fsanitize=address,undefined','-IGUI','-DCALENDAR_LAYOUT_CHECK',f'-D__HEAP_SIZE={heap}',*files,'-o',str(out/f'render{heap}')],check=True)
-dates=['2026-10-21','2026-01-09','2026-03-09','2026-05-11','2026-12-31','2027-01-01','2027-02-20','2028-02-29','2100-03-01']
+dates=['2026-10-21','2026-11-03','2026-01-09','2026-03-09','2026-05-11','2026-12-31','2027-01-01','2027-02-20','2028-02-29','2100-03-01']
 dates+= [f'2026-{m:02d}-01' for m in range(1,13)]
 preview=root/'docs/previews';preview.mkdir(exist_ok=True)
 for date in dates:
@@ -19,7 +19,7 @@ for date in dates:
    subprocess.run([str(out/f'render{heap}'),str(t),str(color),str(path)],check=True)
    contents.append(path.read_bytes())
   assert contents[0]==contents[1], (date,color,'page seams')
-  if date in dates[:9]:
+  if date in dates[:10]:
    Image.open(out/'frame2800.ppm').save(preview/(f'{date}-'+{1:'bw',2:'bwr',3:'bwry'}[color]+'.png'))
 # Unsynchronised reset and the upstream large screen geometries.
 for w,h in [(600,448),(648,480),(800,480),(640,384),(880,528)]:
@@ -27,7 +27,13 @@ for w,h in [(600,448),(648,480),(800,480),(640,384),(880,528)]:
   subprocess.run([str(out/'render2800'),'1792540800',str(c),str(out/'large.ppm'),str(w),str(h)],check=True)
 subprocess.run([str(out/'render2800'),'1735689600','2',str(out/'unsynced.ppm'),'400','300','0'],check=True)
 Image.open(out/'unsynced.ppm').save(preview/'unsynchronised.png')
-for c,label in [(1,'bw'),(2,'bwr'),(3,'bwry')]:
- subprocess.run([str(out/'render2800'),'1792589160',str(c),str(out/'clock.ppm'),'400','300','1','2'],check=True)
- Image.open(out/'clock.ppm').save(preview/f'clock-{label}.png')
-print(f'{len(dates)*3*2+19} ASan/UBSan renderings passed; two MCU heap sizes produce identical pixels')
+for timestamp,name in [(1792589160,'clock'),(int(dt.datetime(2025,7,18,10,8,tzinfo=dt.timezone.utc).timestamp()),'clock-reference')]:
+ for c,label in [(1,'bw'),(2,'bwr'),(3,'bwry')]:
+  frames=[]
+  for heap in (2800,8192):
+   frame=out/f'clock{heap}.ppm'
+   subprocess.run([str(out/f'render{heap}'),str(timestamp),str(c),str(frame),'400','300','1','2'],check=True)
+   frames.append(frame.read_bytes())
+  assert frames[0]==frames[1], (name,c,'clock page seams')
+  Image.open(out/'clock2800.ppm').save(preview/f'{name}-{label}.png')
+print(f'{len(dates)*3*2+28} ASan/UBSan renderings passed; two MCU heap sizes produce identical calendar and clock pixels')
