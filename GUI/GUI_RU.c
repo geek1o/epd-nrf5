@@ -34,6 +34,32 @@ static const char *holiday_label(cal_date_t d) {
         default: return "День единства";
     }
 }
+static uint8_t batt_cal(uint16_t voltage) {
+    uint16_t adc_sample = (voltage * 2047) / 3600;
+    if (adc_sample > 1705)
+        return 100;
+    else if (adc_sample <= 1705 && adc_sample > 1584)
+        return 28 + (uint8_t)(((((adc_sample - 1584) << 16) / (1705 - 1584)) * 72) >> 16);
+    else if (adc_sample <= 1584 && adc_sample > 1360)
+        return 4 + (uint8_t)(((((adc_sample - 1360) << 16) / (1584 - 1360)) * 24) >> 16);
+    else if (adc_sample <= 1360 && adc_sample > 1136)
+        return (uint8_t)(((((adc_sample - 1136) << 16) / (1360 - 1136)) * 4) >> 16);
+    else
+        return 0;
+}
+
+/* Same indicator in calendar and clock; voltage is measured, fill is approximate. */
+static void battery(Adafruit_GFX *g,int right,int top,uint16_t voltage) {
+    char value[20];
+    snprintf(value,sizeof(value),"%u,%u В",voltage/1000,(voltage%1000)/100);
+    GFX_setFont(g,u8g2_font_ru11);
+    text(g,right-24-GFX_getUTF8Width(g,value),top+9,GFX_BLACK,u8g2_font_ru11,value);
+    int bx=right-20;
+    GFX_drawRect(g,bx,top,20,10,GFX_BLACK);
+    GFX_fillRect(g,bx+20,top+4,2,2,GFX_BLACK);
+    GFX_fillRect(g,bx+2,top+2,16*batt_cal(voltage)/100,6,GFX_BLACK);
+}
+
 static void calendar(Adafruit_GFX *g, const gui_data_t *data, cal_date_t d) {
     const uint16_t accent=data->color>=2 ? GFX_RED : GFX_BLACK;
     const int width=data->width, height=data->height;
@@ -43,9 +69,7 @@ static void calendar(Adafruit_GFX *g, const gui_data_t *data, cal_date_t d) {
     char buf[80];
     snprintf(buf,sizeof(buf),"%s %u",cal_month_names[d.month-1],d.year);
     text(g,10,22,GFX_BLACK,u8g2_font_ru16,buf);
-    snprintf(buf,sizeof(buf),"%u,%u В",data->voltage/1000,(data->voltage%1000)/100);
-    GFX_setFont(g,u8g2_font_ru11);
-    text(g,width-10-GFX_getUTF8Width(g,buf),21,GFX_BLACK,u8g2_font_ru11,buf);
+    battery(g,width-12,12,data->voltage);
     GFX_drawFastHLine(g,10,31,width-20,GFX_BLACK);
     GFX_drawFastVLine(g,divider,41,bottom-41,GFX_BLACK);
     static const char *const labels[]={"Пн","Вт","Ср","Чт","Пт","Сб","Вс"};
@@ -107,24 +131,17 @@ static void calendar(Adafruit_GFX *g, const gui_data_t *data, cal_date_t d) {
     uint16_t wy; unsigned week=cal_iso_week(d,&wy);
     snprintf(buf,sizeof(buf),"НЕДЕЛЯ %02u",week);
     text(g,10,height-5,GFX_BLACK,u8g2_font_ru11,buf);
-    const char *note=cal_transfers_known(d.year) ? "Круг: праздник / заливка: сегодня" : "Переносы на этот год не заданы";
-    GFX_setFont(g,u8g2_font_ru11);
-    text(g,width-10-GFX_getUTF8Width(g,note),height-5,GFX_BLACK,u8g2_font_ru11,note);
-}
-static uint8_t batt_cal(uint16_t voltage) {
-    uint16_t adc_sample = (voltage * 2047) / 3600;
-    if (adc_sample > 1705)
-        return 100;
-    else if (adc_sample <= 1705 && adc_sample > 1584)
-        return 28 + (uint8_t)(((((adc_sample - 1584) << 16) / (1705 - 1584)) * 72) >> 16);
-    else if (adc_sample <= 1584 && adc_sample > 1360)
-        return 4 + (uint8_t)(((((adc_sample - 1360) << 16) / (1584 - 1360)) * 24) >> 16);
-    else if (adc_sample <= 1360 && adc_sample > 1136)
-        return (uint8_t)(((((adc_sample - 1136) << 16) / (1360 - 1136)) * 4) >> 16);
+    unsigned ordinal=cal_day_of_year(d),left=cal_days_left_in_year(d);
+    if (cal_transfers_known(d.year))
+        snprintf(buf,sizeof(buf),"День %u/%u  До конца года: %u",ordinal,ordinal+left,left);
     else
-        return 0;
+        snprintf(buf,sizeof(buf),"День %u/%u  Переносы не заданы",ordinal,ordinal+left);
+    GFX_setFont(g,u8g2_font_ru11);
+#ifdef CALENDAR_LAYOUT_CHECK
+    assert(width-10-GFX_getUTF8Width(g,buf)>100);
+#endif
+    text(g,width-10-GFX_getUTF8Width(g,buf),height-5,GFX_BLACK,u8g2_font_ru11,buf);
 }
-
 // clang-format off
 /* Routine to Draw Large 7-Segment formated number
    Contributed by William Zaggle.
@@ -183,13 +200,7 @@ static void clock_view(Adafruit_GFX *g,const gui_data_t *data,cal_date_t d) {
     assert(g->tx<width-padding-70);
 #endif
     text(g,padding,58,GFX_BLACK,u8g2_font_ru13,cal_week_names[cal_weekday(d.year,d.month,d.day)]);
-    snprintf(s,sizeof(s),"%u,%u В",data->voltage/1000,(data->voltage%1000)/100);
-    GFX_setFont(g,u8g2_font_ru11);
-    text(g,width-padding-24-GFX_getUTF8Width(g,s),34,GFX_BLACK,u8g2_font_ru11,s);
-    int bx=width-padding-20;
-    GFX_drawRect(g,bx,25,20,10,GFX_BLACK);
-    GFX_fillRect(g,bx+20,29,2,2,GFX_BLACK);
-    GFX_fillRect(g,bx+2,27,16*batt_cal(data->voltage)/100,6,GFX_BLACK);
+    battery(g,width-padding,25,data->voltage);
     snprintf(s,sizeof(s),"%d°C",data->temperature);
     GFX_setFont(g,u8g2_font_ru13);
     text(g,width-padding-GFX_getUTF8Width(g,s),58,GFX_BLACK,u8g2_font_ru13,s);

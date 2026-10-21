@@ -24,6 +24,14 @@ cal_date_t cal_from_timestamp(uint32_t t) {
     d.day=n+1; return d;
 }
 uint32_t cal_to_timestamp(cal_date_t d) { return days_before(d.year,d.month,d.day)*86400 + d.hour*3600u + d.minute*60u + d.second; }
+uint16_t cal_day_of_year(cal_date_t d) {
+    uint16_t ordinal=d.day;
+    for (uint8_t month=1;month<d.month;month++) ordinal+=cal_month_days(d.year,month);
+    return ordinal;
+}
+uint16_t cal_days_left_in_year(cal_date_t d) {
+    return (leap(d.year)?366:365)-cal_day_of_year(d);
+}
 static uint8_t weeks(uint16_t y) { uint8_t w=cal_weekday(y,1,1); return w==3 || (w==2 && leap(y)) ? 53 : 52; }
 uint8_t cal_iso_week(cal_date_t d, uint16_t *wy) {
     int doy=days_before(d.year,d.month,d.day)-days_before(d.year,1,1)+1;

@@ -43,7 +43,7 @@ void ble_epd_evt_handler(ble_evt_t const* p_ble_evt, void* p_context);
 #endif
 
 #if CALENDAR_RUSSIAN
-#define APP_VERSION 0x1c
+#define APP_VERSION 0x1d
 #else
 #define APP_VERSION 0x1a
 #endif
