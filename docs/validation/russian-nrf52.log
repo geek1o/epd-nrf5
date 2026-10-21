@@ -47,9 +47,9 @@ SDK/17.1.0_ddde560/components/libraries/fstorage/nrf_fstorage.c:57:1: note: in e
    57 | NRF_SECTION_DEF(fs_data, nrf_fstorage_t);
       | ^~~~~~~~~~~~~~~
 Memory region         Used Size  Region Size  %age Used
-           FLASH:       49288 B        56 KB     85.95%
+           FLASH:       50708 B        56 KB     88.43%
              RAM:        1920 B      15656 B     12.26%
    text	   data	    bss	    dec	    hex	filename
-  49288	    220	   1696	  51204	   c804	/workspace/EPD-nRF5/build/nrf52-ru/application.elf
+  50708	    220	   1696	  52624	   cd90	/workspace/EPD-nRF5/build/nrf52-ru/application.elf
 RAM incl. alignment, heap and stack: 1920+8192+2048 = 12160 bytes
-Flash image including data initializers: 49508 bytes
+Flash image including data initializers: 50928 bytes

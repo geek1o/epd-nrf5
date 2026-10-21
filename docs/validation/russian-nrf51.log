@@ -6,9 +6,9 @@ SDK/12.3.0_d7731ad/components/libraries/fds/fds.c:1261:9: note: here
  1261 |         case FDS_OP_WRITE_HEADER_BEGIN:
       |         ^~~~
 Memory region         Used Size  Region Size  %age Used
-           FLASH:       47008 B       129 KB     35.59%
+           FLASH:       48228 B       129 KB     36.51%
              RAM:        3824 B       8200 B     46.63%
    text	   data	    bss	    dec	    hex	filename
-  47008	   1232	   2592	  50832	   c690	/workspace/EPD-nRF5/build/nrf51-ru/application.elf
+  48228	   1232	   2592	  52052	   cb54	/workspace/EPD-nRF5/build/nrf51-ru/application.elf
 RAM incl. alignment, heap and stack: 3824+2800+1200 = 7824 bytes
-Flash image including data initializers: 48240 bytes
+Flash image including data initializers: 49460 bytes
