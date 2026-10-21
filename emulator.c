@@ -223,6 +223,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
                 .width = BITMAP_WIDTH,
                 .height = BITMAP_HEIGHT,
                 .timestamp = g_display_time,
+                .time_valid = true,
                 .week_start = g_week_start,
                 .temperature = 25,
                 .voltage = 2920,

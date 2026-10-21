@@ -118,6 +118,9 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t* p_file_name) {
     app_error_handler(DEAD_BEEF, line_num, p_file_name);
 }
 
+static bool m_time_synced = false;
+bool time_is_synced(void) { return m_time_synced; }
+
 // return current timestamp
 uint32_t timestamp(void) { return m_timestamp; }
 
@@ -125,6 +128,7 @@ uint32_t timestamp(void) { return m_timestamp; }
 void set_timestamp(uint32_t timestamp) {
     app_timer_stop(m_clock_timer_id);
     m_timestamp = timestamp;
+    m_time_synced = true;
     app_timer_start(m_clock_timer_id, CLOCK_TIMER_INTERVAL, NULL);
 }
 
